@@ -4,6 +4,7 @@ import CoreLocation
 import SwiftUI
 
 class FirestoreManager: ObservableObject {
+    static let shared = FirestoreManager()
     private let db = Firestore.firestore()
     
     @Published var friends: [Friend] = []
