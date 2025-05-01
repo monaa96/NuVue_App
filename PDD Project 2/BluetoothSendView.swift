@@ -5,6 +5,8 @@ struct BluetoothSendView: View {
     @ObservedObject var locationManager: LocationManager
     @ObservedObject var firestoreManager: FirestoreManager
     
+    var friendColorOverrides: [String: Color]
+    
     @AppStorage("followingIDs") private var followingIDsString: String = ""
     
     @State private var selectedColor: Color = .blue
@@ -26,7 +28,8 @@ struct BluetoothSendView: View {
                 bluetoothManager.startAutoSending(
                     locationManager: locationManager,
                     firestoreManager: firestoreManager,
-                    followingIDs: followingIDs
+                    followingIDs: followingIDs,
+                    colorOverrides: friendColorOverrides
                 )
             }) {
                 Text("Start Sending Data")

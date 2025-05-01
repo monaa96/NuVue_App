@@ -13,15 +13,27 @@ class LocationBroadcaster {
     static let shared = LocationBroadcaster()
 
     private var lastBroadcastTime: Date?
+    private let broadcastInterval: TimeInterval = 1
 
-    func broadcastIfNeeded(username: String, location: CLLocationCoordinate2D, color: Color, firestoreManager: FirestoreManager) {
-        let now = Date()
-        if let last = lastBroadcastTime, now.timeIntervalSince(last) < 3 {
-            return  // Skip if less than 3 seconds since last update
+    func broadcastIfNeeded(username: String, location: CLLocationCoordinate2D, firestoreManager: FirestoreManager) {
+            let now = Date()
+            // --- Throttling Logic ---
+            // Check if lastBroadcastTime exists AND if not enough time has passed
+            if let last = lastBroadcastTime, now.timeIntervalSince(last) < broadcastInterval {
+                 // print("LocationBroadcaster: Throttled broadcast for \(username).") // Optional log
+                return // Exit if throttled
+            }
+            // If we reach here, it's either the first time (last == nil) OR enough time has passed.
+            // --- End Throttling Logic ---
+
+            guard !username.isEmpty, CLLocationCoordinate2DIsValid(location) else {
+                print("LocationBroadcaster: Invalid username or location for broadcast.")
+                return }
+
+            lastBroadcastTime = now
+            // print("LocationBroadcaster: Broadcasting location for \(username)") // Can be noisy
+
+            // ✅ Call the new updateLocation function
+            firestoreManager.updateLocation(username: username, location: location)
         }
-        lastBroadcastTime = now
-
-        firestoreManager.saveUser(username: username, location: location, color: color)
-        print("📡 Background broadcast: \(location.latitude), \(location.longitude)")
-    }
 }

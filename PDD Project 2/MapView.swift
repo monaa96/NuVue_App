@@ -102,8 +102,7 @@ struct MapView: View {
             guard !username.isEmpty else { return }
             LocationBroadcaster.shared.broadcastIfNeeded(
                 username: username,
-                location: validLocation,
-                color: selectedColor,          // Use the binding value
+                location: validLocation,        // Use the binding value
                 firestoreManager: firestoreManager // Use the observed object instance
             )
         }
@@ -126,7 +125,6 @@ struct MapView: View {
                  LocationBroadcaster.shared.broadcastIfNeeded(
                      username: username,
                      location: initialLocation,
-                     color: selectedColor,
                      firestoreManager: firestoreManager
                  )
              }
