@@ -71,7 +71,7 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
 
     // MARK: - Sending Data
 
-    func sendFriendData(locationManager: LocationManager, firestoreManager: FirestoreManager, followingIDs: [String]) {
+    func sendFriendData(locationManager: LocationManager, firestoreManager: FirestoreManager, followingIDs: [String], distanceThreshold: Double = 100.0) {
         print("📤 [sendFriendData] called")
 
         guard let userLocation = locationManager.location else {
@@ -106,6 +106,15 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         for friend in friendsToSend {
             let friendCoord = CLLocationCoordinate2D(latitude: friend.latitude, longitude: friend.longitude)
             let bearing = calculateBearing(from: userLocation, to: friendCoord)
+            
+            let userLocation: CLLocation = CLLocation(latitude: userLocation.latitude, longitude: userLocation.longitude)
+            let friendLocation: CLLocation = CLLocation(latitude: friendCoord.latitude, longitude: friendCoord.longitude)
+            let distance = userLocation.distance(from: friendLocation)
+            
+            if distance > distanceThreshold {
+                print("🚫 Skipping friend — too far")
+                continue
+            }
 
             // Calculate distance in meters
             let userCLLocation = CLLocation(latitude: userLocation.latitude, longitude: userLocation.longitude)
@@ -185,4 +194,3 @@ extension Double {
     func toRadians() -> Double { self * .pi / 180 }
     func toDegrees() -> Double { self * 180 / .pi }
 }
-
