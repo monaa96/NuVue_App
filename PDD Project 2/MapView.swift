@@ -12,6 +12,11 @@ struct MapView: View {
     var followingIDs: [String]
     var friendColorOverrides: [String: Color]
 
+    // ✅ Add Virtual Mode Properties
+    let isVirtualModeActive: Bool
+    let virtualUserLocation: CLLocationCoordinate2D?
+    let virtualFriendLocations: [String: CLLocationCoordinate2D]
+
     @State private var cameraPosition: MapCameraPosition = .region(
         MKCoordinateRegion(
             center: CLLocationCoordinate2D(
@@ -55,6 +60,23 @@ struct MapView: View {
         return .gray // Fallback
     }
 
+    // --- Current Display Locations ---
+    // ✅ Helper to get the location to actually display
+    private var displayedUserLocation: CLLocationCoordinate2D? {
+        isVirtualModeActive ? virtualUserLocation : locationManager.location
+    }
+
+    private func displayedFriendLocation(for friend: Friend) -> CLLocationCoordinate2D? {
+        guard let friendID = friend.id else { return nil }
+        if isVirtualModeActive {
+            return virtualFriendLocations[friendID] // Return virtual if active
+        } else {
+            // Return real location if valid
+            let realCoord = CLLocationCoordinate2D(latitude: friend.latitude, longitude: friend.longitude)
+            return CLLocationCoordinate2DIsValid(realCoord) ? realCoord : nil
+        }
+    }
+
     // --- Annotation View Builders (Content INSIDE Annotation) ---
     // This builds the VIEW content *for* the user annotation
     @ViewBuilder
@@ -92,32 +114,28 @@ struct MapView: View {
 
     // User Annotation - Returns Annotation directly (which is MapContent)
     // Optional Annotation is also valid MapContent
-    @MapContentBuilder // Use specific builder if returning multiple/conditional MapContent
-    private var userMapAnnotation: some MapContent { // ✅ Return some MapContent
-        if let userLocation = locationManager.location {
-            Annotation("You", coordinate: userLocation, anchor: .bottom) {
-                userAnnotationLabel // Use the ViewBuilder helper for the label
+    @MapContentBuilder
+    private var userMapAnnotation: some MapContent {
+        // ✅ Use the displayedUserLocation helper
+        if let location = displayedUserLocation {
+            Annotation("You", coordinate: location, anchor: .bottom) {
+                userAnnotationLabel
             }
         }
-        // Implicitly returns EmptyMapContent if condition is false
     }
 
     // Friend Annotations - Returns ForEach<..., Annotation<...>> (which is MapContent)
-    @MapContentBuilder // Use specific builder
-    private func friendMapAnnotations() -> some MapContent { // ✅ Return some MapContent
-        ForEach(friendsToDisplay) { friend in // ForEach producing Annotations is MapContent
-            let coordinate = CLLocationCoordinate2D(
-                latitude: friend.latitude, longitude: friend.longitude
-            )
-
-            // Check coordinate validity AND if friend.id exists for color lookup
-            if CLLocationCoordinate2DIsValid(coordinate), friend.id != nil {
-                Annotation(friend.name, coordinate: coordinate, anchor: .center) {
-                    friendAnnotationLabel(for: friend) // Use the ViewBuilder helper for the label
+    @MapContentBuilder
+    private func friendMapAnnotations() -> some MapContent {
+        ForEach(friendsToDisplay) { friend in
+            // ✅ Use the displayedFriendLocation helper
+            if let location = displayedFriendLocation(for: friend) {
+                Annotation(friend.name, coordinate: location, anchor: .center) {
+                    friendAnnotationLabel(for: friend)
                 }
             } else {
-                // Optionally log invalid friend data
-                // print("Skipping friend annotation due to invalid coord or missing ID: \(friend.name)")
+                // Friend might be missing ID or location is invalid/not calculated
+                // print("Skipping friend annotation for \(friend.name) (Invalid/Missing Location)")
             }
         }
     }
@@ -129,54 +147,66 @@ struct MapView: View {
             userMapAnnotation
             friendMapAnnotations()
         }
-        .onChange(of: locationManager.location) { _, newLocation in
-            guard let validLocation = newLocation,
-                  CLLocationCoordinate2DIsValid(validLocation)
-            else { return }
+        .mapStyle(.hybrid)
+        // ✅ onChange for location updates should ONLY broadcast REAL location
+        .onChange(of: locationManager.location) { _, newLocation in // Observe REAL location
+            guard let realLocation = newLocation, CLLocationCoordinate2DIsValid(realLocation) else { return }
 
-            // 1. Center map if needed
-            if !hasCenteredOnUser {
-                cameraPosition = .region(
-                    MKCoordinateRegion(
-                        center: validLocation,
-                        span: MKCoordinateSpan(
-                            latitudeDelta: 0.02, longitudeDelta: 0.02
-                        )
-                    )
-                )
+            // Center map ONLY if NOT in virtual mode and not already centered
+            if !isVirtualModeActive && !hasCenteredOnUser {
+                cameraPosition = .region(MKCoordinateRegion(center: realLocation, span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02)))
                 hasCenteredOnUser = true
             }
 
-            // 2. Trigger broadcast using the correct data from this view
+            // Broadcast REAL location regardless of virtual mode
             guard !username.isEmpty else { return }
             LocationBroadcaster.shared.broadcastIfNeeded(
                 username: username,
-                location: validLocation, // Use the binding value
-                firestoreManager: firestoreManager // Use the observed object instance
+                location: realLocation, // Always broadcast REAL location
+                firestoreManager: firestoreManager
             )
         }
-        .onAppear {
-            // No broadcaster start needed - just ensure location updates start
-            // (LocationManager init already starts updates)
-            print("MapView appeared. Waiting for location updates.")
-
-            // Center/Broadcast if location already available
-            if let initialLocation = locationManager.location,
-               CLLocationCoordinate2DIsValid(initialLocation),
-               !hasCenteredOnUser, !username.isEmpty
-            {
-                cameraPosition = .region(
-                    MKCoordinateRegion(
-                        center: initialLocation,
-                        span: MKCoordinateSpan(
-                            latitudeDelta: 0.02, longitudeDelta: 0.02
-                        )
+        // ✅ Add onChange to react to virtual mode changes (optional camera move)
+        .onChange(of: isVirtualModeActive) { _, newIsVirtual in
+            if newIsVirtual, let targetCenter = virtualUserLocation {
+                print("MapView: Virtual Mode Activated - Moving camera to Killington")
+                // Animate camera to the virtual location center (Killington)
+                withAnimation {
+                    cameraPosition = .region(MKCoordinateRegion(
+                        center: targetCenter,
+                        span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05) // Adjust zoom
                     ))
-                hasCenteredOnUser = true
-                LocationBroadcaster.shared.broadcastIfNeeded(
-                    username: username, location: initialLocation,
-                    firestoreManager: firestoreManager
-                )
+                }
+                hasCenteredOnUser = false // Allow re-centering when returning to reality
+            } else if !newIsVirtual, let realUserLocation = locationManager.location {
+                print("MapView: Virtual Mode Deactivated - Moving camera back to user")
+                // Animate back to user's real location
+                withAnimation {
+                    cameraPosition = .region(MKCoordinateRegion(
+                        center: realUserLocation,
+                        span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02)
+                    ))
+                }
+                hasCenteredOnUser = false // Reset centering flag
+            }
+        }
+        .onAppear {
+            print("MapView appeared.")
+            // Initial camera centering (prioritize virtual if active on appear)
+            let initialCenter = displayedUserLocation ?? CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194) // Default SF
+            if !hasCenteredOnUser || (isVirtualModeActive && cameraPosition.region?.center != virtualUserLocation) {
+                cameraPosition = .region(MKCoordinateRegion(
+                    center: initialCenter,
+                    span: MKCoordinateSpan(latitudeDelta: isVirtualModeActive ? 0.05 : 0.02, longitudeDelta: isVirtualModeActive ? 0.05 : 0.02)
+                ))
+                // Only set hasCenteredOnUser if we centered on the *real* user
+                if !isVirtualModeActive && locationManager.location != nil {
+                    hasCenteredOnUser = true
+                }
+            }
+            // Initial broadcast if needed (use REAL location)
+            if let realLocation = locationManager.location, !username.isEmpty {
+                LocationBroadcaster.shared.broadcastIfNeeded(username: username, location: realLocation, firestoreManager: firestoreManager)
             }
         }
         .onDisappear {

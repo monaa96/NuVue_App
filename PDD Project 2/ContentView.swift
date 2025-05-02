@@ -13,6 +13,11 @@ struct ContentView: View {
     @State private var showRemoveFriends = false
     @State private var showEditFriendColor = false
 
+    // ✅ State for Virtual Location Mode
+    @State private var isVirtualModeActive = false
+    @State private var virtualUserLocation: CLLocationCoordinate2D? = nil
+    @State private var virtualFriendLocations: [String: CLLocationCoordinate2D] = [:] // [FriendID: VirtualCoord]
+
     @AppStorage("followingIDs") private var followingIDsString: String = ""
     @AppStorage("username") private var username: String = ""
 
@@ -27,6 +32,9 @@ struct ContentView: View {
         followingIDsString.split(separator: ",").map { String($0) }.filter { !$0.isEmpty }
     }
 
+    // ✅ Killington Coordinates (Approximate Center)
+    let killingtonCenter = CLLocationCoordinate2D(latitude: 43.6661, longitude: -72.7930)
+
     var body: some View {
         VStack(spacing: 0) {
             if username.isEmpty {
@@ -37,7 +45,11 @@ struct ContentView: View {
                     firestoreManager: firestoreManager,
                     selectedColor: $selectedColor,
                     followingIDs: followingIDs,
-                    friendColorOverrides: friendColorOverrides // Pass the @State value
+                    friendColorOverrides: friendColorOverrides, // Pass the @State value
+                    // Pass virtual mode state and data
+                    isVirtualModeActive: isVirtualModeActive,
+                    virtualUserLocation: virtualUserLocation,
+                    virtualFriendLocations: virtualFriendLocations
                 )
                 .ignoresSafeArea(edges: .top)
 
@@ -55,10 +67,17 @@ struct ContentView: View {
                         Button("🎨 Edit Colors") { showEditFriendColor = true }
                             .buttonStyle(ActionButtonStyle(backgroundColor: .orange))
                     }
-                    #if DEBUG
-                        Button("➕ Add Fake Friends") { addFakeFriends() }
-                            .buttonStyle(ActionButtonStyle(backgroundColor: .purple))
-                    #endif
+                    if isVirtualModeActive {
+                        Button("🏔️ Back to Reality") {
+                            deactivateVirtualMode()
+                        }
+                        .buttonStyle(ActionButtonStyle(backgroundColor: .gray))
+                    } else {
+                        Button("⛷️ To the Slopes!") {
+                            activateVirtualMode()
+                        }
+                        .buttonStyle(ActionButtonStyle(backgroundColor: .cyan)) // Use a different color
+                    }
                 }
                 .padding()
                 .background(.thinMaterial)
@@ -113,6 +132,15 @@ struct ContentView: View {
                 print("ContentView: Encoded data is the same as stored data. No save needed.")
             }
         }
+        // ✅ NEW: Observe changes in Firestore friends data
+        .onChange(of: firestoreManager.friends) { _, newFriendsData in
+            // If virtual mode is active, recalculate positions based on new real data
+            if isVirtualModeActive {
+                print("ContentView: Friends data updated while in virtual mode. Recalculating virtual positions...")
+                // Call a helper function to avoid duplicating logic
+                recalculateVirtualFriendLocations(basedOn: newFriendsData)
+            }
+        }
         // --- Lifecycle ---
         .onAppear {
             print("✅ ContentView: .onAppear FIRED.")
@@ -148,6 +176,66 @@ struct ContentView: View {
         }
     }
 
+    // --- Virtual Mode Functions ---
+
+    private func activateVirtualMode() {
+        print("Activating Virtual Mode: Centering on Killington")
+        guard let currentUserRealLocation = locationManager.location else {
+            print("Cannot activate virtual mode: User location unknown.")
+            return
+        }
+        // 1. Set Virtual User Location
+        virtualUserLocation = killingtonCenter
+        // 2. Calculate initial virtual friend locations
+        recalculateVirtualFriendLocations(basedOn: firestoreManager.friends) // Use helper
+        // 3. Activate mode
+        isVirtualModeActive = true
+    }
+
+    private func recalculateVirtualFriendLocations(basedOn currentFriends: [Friend]) {
+        guard let currentUserRealLocation = locationManager.location else {
+            print("Recalculate Virtual: Cannot update, missing user's real location.")
+            // Maybe deactivate virtual mode if user location is lost?
+            // deactivateVirtualMode()
+            return
+        }
+        guard isVirtualModeActive, let virtualCenter = virtualUserLocation else {
+            // Don't calculate if not in virtual mode or center is missing
+            return
+        }
+
+        var calculatedFriendLocations: [String: CLLocationCoordinate2D] = [:]
+        let followedSet = Set(followingIDs.filter { !$0.isEmpty })
+
+        for friend in currentFriends { // Use the passed-in (latest) friend data
+            guard let friendID = friend.id, followedSet.contains(friendID) else { continue }
+
+            let friendRealLocation = CLLocationCoordinate2D(latitude: friend.latitude, longitude: friend.longitude)
+            guard CLLocationCoordinate2DIsValid(friendRealLocation) else { continue } // Check validity
+
+            let distance = calculateDistance(from: currentUserRealLocation, to: friendRealLocation)
+            let bearing = calculateBearing(from: currentUserRealLocation, to: friendRealLocation)
+            let virtualFriendCoord = calculateDestinationCoordinate(from: virtualCenter, distance: distance, bearing: bearing)
+
+            calculatedFriendLocations[friendID] = virtualFriendCoord
+            // Less verbose logging during recalculation:
+            // print("-> Recalc Friend '\(friend.name)': Virtual Coord: \(virtualFriendCoord.latitude), \(virtualFriendCoord.longitude)")
+        }
+
+        // Update the state - this will trigger MapView redraw
+        virtualFriendLocations = calculatedFriendLocations
+        print("--> Virtual friend locations recalculated: \(virtualFriendLocations.count) friends.")
+    }
+
+    private func deactivateVirtualMode() {
+        print("Deactivating Virtual Mode.")
+        isVirtualModeActive = false
+        virtualUserLocation = nil
+        virtualFriendLocations = [:]
+        // Optional: Animate map camera back to user's real location?
+        // MapView could handle this.
+    }
+
     private func addFakeFriends() {
         let fakeFriends = [
             ("FakeUser1", 42.3601, -71.0589),
@@ -168,6 +256,40 @@ struct ContentView: View {
 
         followingIDsString = currentIDs.joined(separator: ",")
         print("✅ Fake friends added and now following: \(followingIDsString)")
+    }
+
+    // --- Geolocation Helper Functions ---
+
+    func calculateDistance(from origin: CLLocationCoordinate2D, to destination: CLLocationCoordinate2D) -> CLLocationDistance {
+        let originLocation = CLLocation(latitude: origin.latitude, longitude: origin.longitude)
+        let destinationLocation = CLLocation(latitude: destination.latitude, longitude: destination.longitude)
+        return originLocation.distance(from: destinationLocation) // Distance in meters
+    }
+
+    func calculateBearing(from origin: CLLocationCoordinate2D, to destination: CLLocationCoordinate2D) -> Double {
+        let lat1 = origin.latitude.toRadians()
+        let lon1 = origin.longitude.toRadians()
+        let lat2 = destination.latitude.toRadians()
+        let lon2 = destination.longitude.toRadians()
+        let dLon = lon2 - lon1
+        let y = sin(dLon) * cos(lat2)
+        let x = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(dLon)
+        let bearing = atan2(y, x).toDegrees()
+        return (bearing + 360).truncatingRemainder(dividingBy: 360) // Bearing 0-360°
+    }
+
+    func calculateDestinationCoordinate(from start: CLLocationCoordinate2D, distance: CLLocationDistance, bearing: Double) -> CLLocationCoordinate2D {
+        let earthRadius: CLLocationDistance = 6_371_000 // Earth radius in meters (approx)
+        let angularDistance = distance / earthRadius // Angular distance in radians
+
+        let lat1 = start.latitude.toRadians()
+        let lon1 = start.longitude.toRadians()
+        let bearingRad = bearing.toRadians()
+
+        let lat2 = asin(sin(lat1) * cos(angularDistance) + cos(lat1) * sin(angularDistance) * cos(bearingRad))
+        let lon2 = lon1 + atan2(sin(bearingRad) * sin(angularDistance) * cos(lat1), cos(angularDistance) - sin(lat1) * sin(lat2))
+
+        return CLLocationCoordinate2D(latitude: lat2.toDegrees(), longitude: lon2.toDegrees())
     }
 }
 

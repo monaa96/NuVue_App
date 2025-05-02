@@ -71,7 +71,7 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
 
     // MARK: - Sending Data
 
-    func sendFriendData(locationManager: LocationManager, firestoreManager: FirestoreManager, followingIDs: [String], colorOverrides: [String: Color], distanceThreshold: Double = 50000000.0) {
+    func sendFriendData(locationManager: LocationManager, firestoreManager: FirestoreManager, followingIDs: [String], colorOverrides: [String: Color], distanceThreshold: Double = 50_000_000.0) {
         print("📤 [sendFriendData] called")
 
         guard let userLocation = locationManager.location else {
@@ -157,7 +157,8 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
 
         if let peripheral = connectedPeripheral,
            let characteristic = writeCharacteristic,
-           let data = text.data(using: .utf8) {
+           let data = text.data(using: .utf8)
+        {
             peripheral.writeValue(data, for: characteristic, type: .withResponse)
             print("✅ Data sent")
         } else {

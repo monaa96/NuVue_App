@@ -13,7 +13,7 @@ class LocationBroadcaster {
     static let shared = LocationBroadcaster()
 
     private var lastBroadcastTime: Date?
-    private let broadcastInterval: TimeInterval = 1
+    private let broadcastInterval: TimeInterval = 2
 
     func broadcastIfNeeded(username: String, location: CLLocationCoordinate2D, firestoreManager: FirestoreManager) {
         let now = Date()
