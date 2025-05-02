@@ -71,7 +71,7 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
 
     // MARK: - Sending Data
 
-    func sendFriendData(locationManager: LocationManager, firestoreManager: FirestoreManager, followingIDs: [String], colorOverrides: [String: Color], distanceThreshold: Double = 100.0) {
+    func sendFriendData(locationManager: LocationManager, firestoreManager: FirestoreManager, followingIDs: [String], colorOverrides: [String: Color], distanceThreshold: Double = 50000000.0) {
         print("📤 [sendFriendData] called")
 
         guard let userLocation = locationManager.location else {
@@ -130,10 +130,10 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
             var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0
             uiColor.getRed(&red, green: &green, blue: &blue, alpha: nil) // Use CGFloat
 
-            // Calculate distance in meters
-            let userCLLocation = CLLocation(latitude: userLocation.latitude, longitude: userLocation.longitude)
-            let friendCLLocation = CLLocation(latitude: friendCoord.latitude, longitude: friendCoord.longitude)
-            let distance = userCLLocation.distance(from: friendCLLocation) // Distance in meters
+            // // Calculate distance in meters
+            // let userCLLocation = CLLocation(latitude: userLocation.latitude, longitude: userLocation.longitude)
+            // let friendCLLocation = CLLocation(latitude: friendCoord.latitude, longitude: friendCoord.longitude)
+            // let distance = userCLLocation.distance(from: friendCLLocation) // Distance in meters
 
             // Log distance for verification
             print("📏 Distance to \(friend.id ?? "unknown") : \(distance) meters")
