@@ -1,5 +1,5 @@
-import SwiftUI
 import CoreBluetooth
+import SwiftUI
 
 struct BluetoothDeviceListView: View {
     @ObservedObject var bluetoothManager: BluetoothManager
@@ -30,4 +30,3 @@ struct BluetoothDeviceListView: View {
         }
     }
 }
-

@@ -41,25 +41,25 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         }
     }
 
-    func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : Any], rssi RSSI: NSNumber) {
+    func centralManager(_: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData _: [String: Any], rssi _: NSNumber) {
         if !peripherals.contains(peripheral) {
             peripherals.append(peripheral)
         }
     }
 
-    func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
+    func centralManager(_: CBCentralManager, didConnect peripheral: CBPeripheral) {
         print("✅ Connected to peripheral: \(peripheral.name ?? "Unnamed")")
         peripheral.discoverServices(nil)
     }
 
-    func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
+    func peripheral(_ peripheral: CBPeripheral, didDiscoverServices _: Error?) {
         guard let services = peripheral.services else { return }
         for service in services {
             peripheral.discoverCharacteristics(nil, for: service)
         }
     }
 
-    func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
+    func peripheral(_: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error _: Error?) {
         guard let characteristics = service.characteristics else { return }
         for characteristic in characteristics {
             if characteristic.properties.contains(.write) || characteristic.properties.contains(.writeWithoutResponse) {
@@ -105,26 +105,26 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
 
         for friend in friendsToSend {
             guard let friendID = friend.id else { continue } // Need friend ID
-            
+
             let friendCoord = CLLocationCoordinate2D(latitude: friend.latitude, longitude: friend.longitude)
             let bearing = calculateBearing(from: userLocation, to: friendCoord)
-            
-            let userLocation: CLLocation = CLLocation(latitude: userLocation.latitude, longitude: userLocation.longitude)
-            let friendLocation: CLLocation = CLLocation(latitude: friendCoord.latitude, longitude: friendCoord.longitude)
+
+            let userLocation = CLLocation(latitude: userLocation.latitude, longitude: userLocation.longitude)
+            let friendLocation = CLLocation(latitude: friendCoord.latitude, longitude: friendCoord.longitude)
             let distance = userLocation.distance(from: friendLocation)
-            
+
             if distance > distanceThreshold {
                 print("🚫 Skipping friend — too far")
                 continue
             }
-            
+
             let displayColor: Color
             if let override = colorOverrides[friendID] { // Check for override
                 displayColor = override
             } else { // Use default from friend object
                 displayColor = Color(red: friend.r, green: friend.g, blue: friend.b)
             }
-            
+
             // Convert the final displayColor to RGB Ints
             let uiColor = UIColor(displayColor)
             var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0
@@ -139,7 +139,7 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
             print("📏 Distance to \(friend.id ?? "unknown") : \(distance) meters")
 
             let id = Int(friend.id?.hashValue ?? 0) & 0xFFFF
-            let r = Int(red * 255)   // Use local variables
+            let r = Int(red * 255) // Use local variables
             let g = Int(green * 255)
             let b = Int(blue * 255)
             let bearingInt = Int(bearing)
@@ -151,7 +151,6 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
             sendRawData(packet) // ✅ Make sure send is inside the loop
         }
     }
-
 
     func sendRawData(_ text: String) {
         print("📡 [Sending over Bluetooth]: \(text)")

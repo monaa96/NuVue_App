@@ -1,6 +1,6 @@
-import Foundation
-import FirebaseFirestore
 import CoreLocation
+import FirebaseFirestore
+import Foundation
 import SwiftUI
 
 class FirestoreManager: ObservableObject {
@@ -45,15 +45,15 @@ class FirestoreManager: ObservableObject {
                       let longitude = data["longitude"] as? Double,
                       let r = data["r"] as? Double, // Expects Double
                       let g = data["g"] as? Double, // Expects Double
-                      let b = data["b"] as? Double  // Expects Double
+                      let b = data["b"] as? Double // Expects Double
                 else {
                     print("    🔥 Mapping FAILED for \(docID). Check fields/types in Firestore data: \(data)") // Log data on failure
                     return nil
                 }
 
                 let mappedFriend = Friend(
-                    id: docID,        // Uses document ID (which is username here)
-                    name: username,   // Assigns Firestore "username" field to Friend's "name" property
+                    id: docID, // Uses document ID (which is username here)
+                    name: username, // Assigns Firestore "username" field to Friend's "name" property
                     latitude: latitude,
                     longitude: longitude,
                     r: r,
@@ -103,7 +103,7 @@ class FirestoreManager: ObservableObject {
             "r": Double(red),
             "g": Double(green),
             "b": Double(blue),
-            "lastUpdated": Timestamp(date: Date()) // ✅ Add a timestamp
+            "lastUpdated": Timestamp(date: Date()), // ✅ Add a timestamp
         ]
         print("--> Preparing to save FULL profile data: \(userData)")
 
@@ -113,8 +113,9 @@ class FirestoreManager: ObservableObject {
             else { print("✅ User profile '\(trimmedUsername)' saved.") }
         }
     }
+
     // Updates only dynamic fields like location and timestamp. DOES NOT save color.
-   func updateLocation(username: String, location: CLLocationCoordinate2D) {
+    func updateLocation(username: String, location: CLLocationCoordinate2D) {
         let trimmedUsername = username.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedUsername.isEmpty else { return }
         // print("✅ FirestoreManager: updateLocation called for '\(trimmedUsername)'") // Can be noisy
@@ -122,7 +123,7 @@ class FirestoreManager: ObservableObject {
         let locationData: [String: Any] = [
             "latitude": location.latitude,
             "longitude": location.longitude,
-            "lastUpdated": Timestamp(date: Date()) // Update timestamp
+            "lastUpdated": Timestamp(date: Date()), // Update timestamp
             // DO NOT include r, g, b here
         ]
         // print("--> Preparing to update location data: \(locationData)") // Can be noisy
@@ -132,7 +133,7 @@ class FirestoreManager: ObservableObject {
             if let error = error { print("🔥 Error updating location for '\(trimmedUsername)': \(error)") }
             // else { print("✅ Location for '\(trimmedUsername)' updated.") } // Can be noisy
         }
-   }
+    }
 
     // fetchUser (ensure field names match saveUser and listener)
     func fetchUser(username: String, completion: @escaping (Friend?) -> Void) {
@@ -157,26 +158,27 @@ class FirestoreManager: ObservableObject {
             }
 
             // Map data (ensure field names match listener)
-             guard let name = data["username"] as? String, // Reads "username" field
-                   let latitude = data["latitude"] as? Double,
-                   let longitude = data["longitude"] as? Double,
-                   let r = data["r"] as? Double,
-                   let g = data["g"] as? Double,
-                   let b = data["b"] as? Double else {
-                 print("🔥 fetchUser: Failed to map data for '\(trimmedUsername)'. Data: \(data)")
-                 completion(nil)
-                 return
-             }
+            guard let name = data["username"] as? String, // Reads "username" field
+                  let latitude = data["latitude"] as? Double,
+                  let longitude = data["longitude"] as? Double,
+                  let r = data["r"] as? Double,
+                  let g = data["g"] as? Double,
+                  let b = data["b"] as? Double
+            else {
+                print("🔥 fetchUser: Failed to map data for '\(trimmedUsername)'. Data: \(data)")
+                completion(nil)
+                return
+            }
 
-             let friend = Friend(
-                 id: document.documentID, // Uses document ID (which is username)
-                 name: name,             // Uses Firestore "username" field for Friend's "name"
-                 latitude: latitude,
-                 longitude: longitude,
-                 r: r,
-                 g: g,
-                 b: b
-             )
+            let friend = Friend(
+                id: document.documentID, // Uses document ID (which is username)
+                name: name, // Uses Firestore "username" field for Friend's "name"
+                latitude: latitude,
+                longitude: longitude,
+                r: r,
+                g: g,
+                b: b
+            )
             // print("fetchUser: Successfully fetched and mapped '\(trimmedUsername)'")
             completion(friend)
         }

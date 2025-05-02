@@ -1,8 +1,8 @@
-import Foundation
 import CoreLocation
+import Foundation
 
 struct Friend: Identifiable {
-    var id: String?  // Firestore document ID
+    var id: String? // Firestore document ID
     var name: String
     var latitude: Double
     var longitude: Double
@@ -10,4 +10,3 @@ struct Friend: Identifiable {
     var g: Double
     var b: Double
 }
-

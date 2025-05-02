@@ -21,7 +21,7 @@ struct AddFriendView: View {
 
     // ✅ Filter the 'friends' list (all users) to exclude self AND already followed users
     private var usersToDiscover: [Friend] { // Renamed for clarity
-        let followedSet = self.followingIDsSet // Capture the set once
+        let followedSet = followingIDsSet // Capture the set once
 
         return firestoreManager.friends.filter { user in
             // Ensure user has a valid ID
@@ -76,14 +76,14 @@ struct AddFriendView: View {
 
                 // ✅ Use the refined filtered list 'usersToDiscover'
                 if firestoreManager.friends.isEmpty { // Still check if initial load is happening
-                     ProgressView("Loading users...")
-                         .padding()
-                // ✅ Check the filtered list for the empty state message
-                 } else if usersToDiscover.isEmpty {
-                     Text("No new users to discover.") // Updated empty message
-                         .foregroundColor(.secondary)
-                         .padding()
-                 } else {
+                    ProgressView("Loading users...")
+                        .padding()
+                    // ✅ Check the filtered list for the empty state message
+                } else if usersToDiscover.isEmpty {
+                    Text("No new users to discover.") // Updated empty message
+                        .foregroundColor(.secondary)
+                        .padding()
+                } else {
                     // List the filtered users
                     List(usersToDiscover) { user in // Use the new computed property
                         Button(action: {
@@ -94,7 +94,7 @@ struct AddFriendView: View {
                                     .foregroundColor(.secondary)
                                 Text(user.name)
                             }
-                             .foregroundColor(.primary)
+                            .foregroundColor(.primary)
                         }
                     }
                     .listStyle(.plain)
@@ -136,14 +136,14 @@ struct AddFriendView: View {
 
                     if let friendID = friend.id, !friendID.isEmpty {
                         if currentIDsSet.contains(friendID) {
-                             print("⚠️ Friend '\(friend.name)' (\(friendID)) already added.")
-                             // Add alert here?
+                            print("⚠️ Friend '\(friend.name)' (\(friendID)) already added.")
+                            // Add alert here?
                         } else {
                             currentIDsSet.insert(friendID)
                             // Update the binding string
                             followingIDsString = currentIDsSet.sorted().joined(separator: ",")
                             print("✅ Friend '\(friend.name)' (\(friendID)) added successfully! New string: \(followingIDsString)")
-                             dismiss()
+                            dismiss()
                         }
                     } else {
                         print("❌ Fetched friend '\(friend.name)' is missing a valid ID.")

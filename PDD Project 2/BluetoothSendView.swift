@@ -4,17 +4,17 @@ struct BluetoothSendView: View {
     @ObservedObject var bluetoothManager: BluetoothManager
     @ObservedObject var locationManager: LocationManager
     @ObservedObject var firestoreManager: FirestoreManager
-    
+
     var friendColorOverrides: [String: Color]
-    
+
     @AppStorage("followingIDs") private var followingIDsString: String = ""
-    
+
     @State private var selectedColor: Color = .blue
-    
+
     private var followingIDs: [String] {
         followingIDsString.split(separator: ",").map { String($0) }
     }
-    
+
     var body: some View {
         VStack(spacing: 20) {
             Text("Bluetooth Send View")
@@ -38,7 +38,7 @@ struct BluetoothSendView: View {
                     .foregroundColor(.white)
                     .cornerRadius(10)
             }
-            
+
             Button(action: {
                 bluetoothManager.stopAutoSending()
             }) {
@@ -52,4 +52,3 @@ struct BluetoothSendView: View {
         .padding()
     }
 }
-

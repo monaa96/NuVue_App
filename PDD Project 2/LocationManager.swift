@@ -1,5 +1,5 @@
-import Foundation
 import CoreLocation
+import Foundation
 import SwiftUI // Keep SwiftUI import if Color is used elsewhere, otherwise remove
 
 class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
@@ -33,37 +33,36 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         switch manager.authorizationStatus {
-            case .authorizedAlways, .authorizedWhenInUse:
-                print("LocationManager: Authorization granted.")
-                startUpdates() // Start updates once authorized
-            case .notDetermined:
-                print("LocationManager: Authorization not determined.")
-                manager.requestAlwaysAuthorization() // Or requestWhenInUseAuthorization
-            case .restricted, .denied:
-                print("LocationManager: Authorization restricted or denied.")
-                // Handle denial - show alert, guide user to settings?
-            @unknown default:
-                print("LocationManager: Unknown authorization status.")
+        case .authorizedAlways, .authorizedWhenInUse:
+            print("LocationManager: Authorization granted.")
+            startUpdates() // Start updates once authorized
+        case .notDetermined:
+            print("LocationManager: Authorization not determined.")
+            manager.requestAlwaysAuthorization() // Or requestWhenInUseAuthorization
+        case .restricted, .denied:
+            print("LocationManager: Authorization restricted or denied.")
+        // Handle denial - show alert, guide user to settings?
+        @unknown default:
+            print("LocationManager: Unknown authorization status.")
         }
     }
 
-
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+    func locationManager(_: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let latest = locations.last else { return }
         let coord = latest.coordinate
 
         // Only update published property if the location actually changed significantly (optional optimization)
         // let minDistance: CLLocationDistance = 10 // meters
         // if self.location == nil || CLLocation(latitude: self.location!.latitude, longitude: self.location!.longitude).distance(from: latest) > minDistance {
-            DispatchQueue.main.async {
-                 // Check validity just in case
-                 if CLLocationCoordinate2DIsValid(coord) {
-                    self.location = coord
-                    // print("LocationManager: Updated location to \(coord.latitude), \(coord.longitude)")
-                 } else {
-                    print("LocationManager: Received invalid location.")
-                 }
+        DispatchQueue.main.async {
+            // Check validity just in case
+            if CLLocationCoordinate2DIsValid(coord) {
+                self.location = coord
+                // print("LocationManager: Updated location to \(coord.latitude), \(coord.longitude)")
+            } else {
+                print("LocationManager: Received invalid location.")
             }
+        }
         // }
 
         // --- REMOVED BROADCASTING LOGIC FROM HERE ---
@@ -71,7 +70,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         // ---
     }
 
-    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+    func locationManager(_: CLLocationManager, didFailWithError error: Error) {
         print("LocationManager: Failed to get location - \(error.localizedDescription)")
         // Optionally update UI or published properties to indicate error state
     }

@@ -3,7 +3,6 @@ import UIKit // Using UIKit for UIColor conversion
 
 // Extension to convert Color to Data and back using UIColor archiving for UserDefaults persistence
 extension Color {
-
     // Convert SwiftUI Color to Data
     func toData() -> Data? {
         let uiColor = UIColor(self)
@@ -64,10 +63,10 @@ func decodeColorDictionary(from data: Data) -> [String: Color]? {
     print("ColorArchiving: Decoding dictionary from \(data.count) bytes...") // ✅ Log start
     // Unarchive the [String: Data] dictionary
     guard let dataDictionary = (try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(data)) as? [String: Data] else {
-         // Handle case where data is empty or invalid format gracefully
-         if data.isEmpty {
-             return [:] // Return empty dict if data was empty
-         }
+        // Handle case where data is empty or invalid format gracefully
+        if data.isEmpty {
+            return [:] // Return empty dict if data was empty
+        }
         print("Error unarchiving color dictionary: Could not decode top level object or cast to [String: Data].")
         return nil
     }
