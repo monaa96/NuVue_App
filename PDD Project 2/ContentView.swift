@@ -6,6 +6,8 @@ struct ContentView: View {
     @StateObject private var locationManager = LocationManager()
     @StateObject private var firestoreManager = FirestoreManager()
     @StateObject private var bluetoothManager = BluetoothManager()
+    
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var selectedColor: Color = .blue // User's own color
     @State private var showBluetoothList = false
@@ -141,6 +143,14 @@ struct ContentView: View {
                 recalculateVirtualFriendLocations(basedOn: newFriendsData)
             }
         }
+        .onChange(of: scenePhase) { _, newPhase in // Use modern signature
+            print("App Scene Phase Changed: \(newPhase)")
+            if newPhase == .active {
+                // App became active (foreground) - ensure location updates are running
+                print("--> App became active. Ensuring location updates are started.")
+                locationManager.startUpdates() // Attempt to start/restart updates
+            }
+        }
         // --- Lifecycle ---
         .onAppear {
             print("✅ ContentView: .onAppear FIRED.")
@@ -168,11 +178,12 @@ struct ContentView: View {
             }
 
             // Start other services
-            locationManager.startUpdates()
+            
             firestoreManager.startListening() // Ensure this is called appropriately
+            locationManager.startUpdates()
         }
         .onDisappear {
-            locationManager.stopUpdates()
+            print("✅ ContentView: .onDisappear FIRED.")
         }
     }
 
