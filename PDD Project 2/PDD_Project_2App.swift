@@ -5,8 +5,8 @@
 //  Created by Mona Agarwal on 4/21/25.
 //
 
-import SwiftUI
 import Firebase
+import SwiftUI
 
 @main
 struct YourProjectApp: App {
@@ -20,4 +20,3 @@ struct YourProjectApp: App {
         }
     }
 }
-

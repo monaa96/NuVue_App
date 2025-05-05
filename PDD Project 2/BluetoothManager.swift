@@ -41,25 +41,25 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         }
     }
 
-    func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : Any], rssi RSSI: NSNumber) {
+    func centralManager(_: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData _: [String: Any], rssi _: NSNumber) {
         if !peripherals.contains(peripheral) {
             peripherals.append(peripheral)
         }
     }
 
-    func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
+    func centralManager(_: CBCentralManager, didConnect peripheral: CBPeripheral) {
         print("✅ Connected to peripheral: \(peripheral.name ?? "Unnamed")")
         peripheral.discoverServices(nil)
     }
 
-    func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
+    func peripheral(_ peripheral: CBPeripheral, didDiscoverServices _: Error?) {
         guard let services = peripheral.services else { return }
         for service in services {
             peripheral.discoverCharacteristics(nil, for: service)
         }
     }
 
-    func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
+    func peripheral(_: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error _: Error?) {
         guard let characteristics = service.characteristics else { return }
         for characteristic in characteristics {
             if characteristic.properties.contains(.write) || characteristic.properties.contains(.writeWithoutResponse) {
@@ -71,7 +71,7 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
 
     // MARK: - Sending Data
 
-    func sendFriendData(locationManager: LocationManager, firestoreManager: FirestoreManager, followingIDs: [String]) {
+    func sendFriendData(locationManager: LocationManager, firestoreManager: FirestoreManager, followingIDs: [String], colorOverrides: [String: Color], distanceThreshold: Double = 50_000_000.0) {
         print("📤 [sendFriendData] called")
 
         guard let userLocation = locationManager.location else {
@@ -104,21 +104,44 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         print("📦 Sending \(friendsToSend.count) friends' data")
 
         for friend in friendsToSend {
+            guard let friendID = friend.id else { continue } // Need friend ID
+
             let friendCoord = CLLocationCoordinate2D(latitude: friend.latitude, longitude: friend.longitude)
             let bearing = calculateBearing(from: userLocation, to: friendCoord)
 
-            // Calculate distance in meters
-            let userCLLocation = CLLocation(latitude: userLocation.latitude, longitude: userLocation.longitude)
-            let friendCLLocation = CLLocation(latitude: friendCoord.latitude, longitude: friendCoord.longitude)
-            let distance = userCLLocation.distance(from: friendCLLocation) // Distance in meters
+            let userLocation = CLLocation(latitude: userLocation.latitude, longitude: userLocation.longitude)
+            let friendLocation = CLLocation(latitude: friendCoord.latitude, longitude: friendCoord.longitude)
+            let distance = userLocation.distance(from: friendLocation)
+
+            if distance > distanceThreshold {
+                print("🚫 Skipping friend — too far")
+                continue
+            }
+
+            let displayColor: Color
+            if let override = colorOverrides[friendID] { // Check for override
+                displayColor = override
+            } else { // Use default from friend object
+                displayColor = Color(red: friend.r, green: friend.g, blue: friend.b)
+            }
+
+            // Convert the final displayColor to RGB Ints
+            let uiColor = UIColor(displayColor)
+            var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0
+            uiColor.getRed(&red, green: &green, blue: &blue, alpha: nil) // Use CGFloat
+
+            // // Calculate distance in meters
+            // let userCLLocation = CLLocation(latitude: userLocation.latitude, longitude: userLocation.longitude)
+            // let friendCLLocation = CLLocation(latitude: friendCoord.latitude, longitude: friendCoord.longitude)
+            // let distance = userCLLocation.distance(from: friendCLLocation) // Distance in meters
 
             // Log distance for verification
             print("📏 Distance to \(friend.id ?? "unknown") : \(distance) meters")
 
             let id = Int(friend.id?.hashValue ?? 0) & 0xFFFF
-            let r = Int(friend.r * 255)
-            let g = Int(friend.g * 255)
-            let b = Int(friend.b * 255)
+            let r = Int(red * 255) // Use local variables
+            let g = Int(green * 255)
+            let b = Int(blue * 255)
             let bearingInt = Int(bearing)
             let distanceInt = Int(distance) // Convert distance to an integer (meters)
 
@@ -129,13 +152,13 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         }
     }
 
-
     func sendRawData(_ text: String) {
         print("📡 [Sending over Bluetooth]: \(text)")
 
         if let peripheral = connectedPeripheral,
            let characteristic = writeCharacteristic,
-           let data = text.data(using: .utf8) {
+           let data = text.data(using: .utf8)
+        {
             peripheral.writeValue(data, for: characteristic, type: .withResponse)
             print("✅ Data sent")
         } else {
@@ -143,7 +166,7 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         }
     }
 
-    func startAutoSending(locationManager: LocationManager, firestoreManager: FirestoreManager, followingIDs: [String]) {
+    func startAutoSending(locationManager: LocationManager, firestoreManager: FirestoreManager, followingIDs: [String], colorOverrides: [String: Color]) {
         sendTimer?.invalidate()
 
         print("⏰ Timer started for auto-sending")
@@ -153,7 +176,8 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
             self?.sendFriendData(
                 locationManager: locationManager,
                 firestoreManager: firestoreManager,
-                followingIDs: followingIDs
+                followingIDs: followingIDs,
+                colorOverrides: colorOverrides
             )
         }
     }
@@ -185,4 +209,3 @@ extension Double {
     func toRadians() -> Double { self * .pi / 180 }
     func toDegrees() -> Double { self * 180 / .pi }
 }
-

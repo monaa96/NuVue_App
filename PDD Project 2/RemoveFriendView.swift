@@ -37,4 +37,3 @@ struct RemoveFriendView: View {
         followingIDsString = currentIDs.joined(separator: ",")
     }
 }
-
